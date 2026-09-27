@@ -11,7 +11,6 @@ import com.fordchallenge.ford_competitive_api.vehicles.dto.VehicleSearchRequest;
 import com.fordchallenge.ford_competitive_api.vehicles.entity.Vehicle;
 import com.fordchallenge.ford_competitive_api.vehicles.entity.VehicleSpec;
 import com.fordchallenge.ford_competitive_api.vehicles.repository.VehicleRepository;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -105,7 +104,7 @@ public class VehicleService {
         // Correção: antes o histórico era sempre gravado com o usuário de id fixo (1L),
         // ignorando quem de fato fez a requisição autenticada. Agora usamos o usuário
         // presente no SecurityContext (populado pelo JwtAuthenticationFilter a partir do token).
-        User currentUser = getAuthenticatedUserOrNull();
+        User currentUser = authenticatedUserProvider.getCurrentUser();
 
         SearchHistory history = SearchHistory.builder()
                 .termoBusca(
@@ -118,20 +117,6 @@ public class VehicleService {
                 .build();
 
         searchHistoryRepository.save(history);
-    }
-
-    private User getAuthenticatedUserOrNull() {
-        // Endpoint é autenticado (ver SecurityConfig), então em condições normais
-        // sempre haverá um usuário no contexto. O fallback null evita quebrar a
-        // gravação do histórico em cenários de teste/edge-case.
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            return null;
-        }
-        try {
-            return authenticatedUserProvider.getCurrentUser();
-        } catch (RuntimeException exception) {
-            return null;
-        }
     }
 
     private VehicleResponse mapToResponse(Vehicle vehicle) {
