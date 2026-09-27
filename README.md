@@ -1,8 +1,13 @@
 # Ford Competitive Intelligence API
 
-## Disciplina
+## Entregas por branch
 
-Arquitetura Orientada a Serviços (SOA) e Web Services
+| Branch | Disciplina | Conteúdo |
+|---|---|---|
+| [`main`](https://github.com/fecarioba/ford-competitive-api/tree/main) | Arquitetura Orientada a Serviços (SOA) e Web Services | API da Sprint 3: arquitetura, autenticação JWT, autorização por perfil, endpoints REST, testes e documentação. |
+| [`codex/sprint3-api-security`](https://github.com/fecarioba/ford-competitive-api/tree/codex/sprint3-api-security) | Cybersecurity | Mesma base da API, acrescida das medidas de segurança descritas em [Segurança — diferenças desta branch](#segurança--diferenças-desta-branch). |
+
+Este README documenta a branch de **Cybersecurity**. Para entregar apenas a API da disciplina de SOA e Web Services, use a branch `main`; para a entrega de Cybersecurity, use `codex/sprint3-api-security`.
 
 ---
 
@@ -26,7 +31,28 @@ Na Sprint 1, o foco foi o desenvolvimento de um MVP profissional contendo autent
 
 Na **Sprint 3 (disciplina de Arquitetura Orientada a Serviços e Web Services)**, o projeto foi **refatorado** para atender integralmente aos critérios de avaliação da entrega, mantendo a identidade original (pacotes, convenções de nomes e domínios). As mudanças estão detalhadas na seção [Sprint 3 — O que mudou nesta refatoração](#sprint-3--o-que-mudou-nesta-refatoração).
 
+As melhorias específicas da entrega de Cybersecurity foram feitas sobre essa base e estão documentadas separadamente abaixo.
+
 As funcionalidades de IA, scraping e Google Dorking ainda não foram implementadas, permanecendo apenas preparadas arquiteturalmente para futuras evoluções do projeto (ver Sprint 3 de Inteligência Artificial & Machine Learning).
+
+---
+
+# Segurança — diferenças desta branch
+
+As medidas a seguir foram adicionadas em `codex/sprint3-api-security` sobre a API da branch `main`:
+
+| Área | Alteração na branch de Cybersecurity | Finalidade |
+|---|---|---|
+| Segredos e banco | `DB_PASSWORD` e `JWT_SECRET` são variáveis de ambiente obrigatórias, sem senhas ou chaves de exemplo como fallback. | Evitar credenciais padrão no código e na configuração versionada. |
+| JWT | Expiração padrão reduzida de 24 horas para 1 hora; `JWT_EXPIRATION_MS` permite configurar outro prazo. | Reduzir a janela de uso de um token comprometido. |
+| Login | `POST /auth/login` aceita até 10 requisições por IP em uma janela de 1 minuto; a 11ª retorna HTTP 429 e `Retry-After`. | Dificultar tentativas repetidas de autenticação. |
+| Cadastro e entradas | Senha de cadastro entre 12 e 128 caracteres; limites para nome, e-mail, senha de login e campos da busca de veículos; ano entre 1886 e 2100. | Rejeitar entradas fora dos limites esperados. |
+| CORS | Origens web são definidas por `CORS_ALLOWED_ORIGINS`, com `http://localhost:8081` como padrão local; credenciais CORS desabilitadas. | Restringir origens permitidas para clientes web. |
+| Histórico de buscas | A gravação exige o usuário autenticado e não ignora silenciosamente falhas ao identificá-lo. | Impedir histórico sem vínculo válido com o usuário. |
+| Erros e registros | Exceções inesperadas retornam HTTP 500 com mensagem genérica; logins bem-sucedidos e falhos geram eventos sem registrar senha ou token; SQL verboso está desligado. | Reduzir exposição de detalhes internos e registrar eventos de autenticação. |
+| Testes | Casos adicionais verificam HTTP 429 no login e validação do ano na busca; os testes existentes foram ajustados à nova regra de senha. | Cobrir as novas regras da branch. |
+
+O limite de login usa memória local da instância e o endereço remoto da conexão. Em uma implantação com várias instâncias ou atrás de proxy, é necessário configurar a infraestrutura de rede e aplicar um limite compartilhado no gateway ou em armazenamento externo. O CORS afeta navegadores; aplicativos mobile nativos não dependem dele. As medidas da API complementam, mas não substituem, a segurança do aplicativo mobile que a consome.
 
 ---
 
@@ -502,7 +528,7 @@ Testes incluídos:
 - `VehicleServiceTest` — busca de veículo existente vs. criação de mock, vínculo do histórico ao usuário autenticado, erro 404.
 - `AuthenticationFlowIntegrationTest` — teste ponta a ponta com o filtro de segurança real: fluxo completo de registro→login→uso do token, acesso público sem token, 401 sem token/token inválido, 403 para perfil sem permissão, 404 e 409.
 
-Ao todo são 25 métodos de teste distribuídos nessas 5 classes (contando também o `contextLoads()` padrão), cobrindo cenários de sucesso, erro e acesso não autorizado, conforme exigido no critério de avaliação.
+Esta branch acrescenta dois cenários de integração aos testes da entrega da API: limite de requisições no login e rejeição de ano fora dos limites na busca.
 
 ## Evidência de Execução dos Testes
 
@@ -518,7 +544,7 @@ No Windows (PowerShell ou CMD), use:
 mvnw.cmd clean test
 ```
 
-Resultado da execução, com todos os testes passando:
+Evidência de execução da base da API (`main`); execute os testes novamente nesta branch para validar as alterações de Cybersecurity:
 
 ![Resultado dos testes](docs/testes.png)
 ---
