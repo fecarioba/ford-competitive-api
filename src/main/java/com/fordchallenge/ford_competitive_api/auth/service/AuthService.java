@@ -11,9 +11,12 @@ import com.fordchallenge.ford_competitive_api.users.entity.UserRole;
 import com.fordchallenge.ford_competitive_api.users.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -47,19 +50,20 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new InvalidCredentialsException("Credenciais inválidas"));
+        User user = userRepository.findByEmail(request.email()).orElse(null);
 
-        boolean passwordMatches = passwordEncoder.matches(
+        boolean passwordMatches = user != null && passwordEncoder.matches(
                 request.senha(),
                 user.getSenhaHash()
         );
 
         if (!passwordMatches) {
+            log.warn("event=login_failed reason=invalid_credentials");
             throw new InvalidCredentialsException("Credenciais inválidas");
         }
 
         String token = jwtService.generateToken(user);
+        log.info("event=login_success userId={}", user.getId());
 
         return new AuthResponse(token, "Bearer");
     }
