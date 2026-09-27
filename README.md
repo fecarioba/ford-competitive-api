@@ -5,7 +5,7 @@
 | Branch | Disciplina | Conteúdo |
 |---|---|---|
 | [`main`](https://github.com/fecarioba/ford-competitive-api/tree/main) | Arquitetura Orientada a Serviços (SOA) e Web Services | API da Sprint 3: arquitetura, autenticação JWT, autorização por perfil, endpoints REST, testes e documentação. |
-| [`codex/sprint3-api-security`](https://github.com/fecarioba/ford-competitive-api/tree/codex/sprint3-api-security) | Cybersecurity | Mesma base da API, acrescida das medidas de segurança descritas em [Segurança — diferenças desta branch](#segurança--diferenças-desta-branch). |
+| [`codex/sprint3-api-security`](https://github.com/fecarioba/ford-competitive-api/tree/codex/sprint3-api-security) | Cybersecurity | Mesma base da API, acrescida das medidas de segurança descritas em [Segurança — diferenças desta branch](#Segurança). |
 
 Este README documenta a branch de **Cybersecurity**. Para entregar apenas a API da disciplina de SOA e Web Services, use a branch `main`; para a entrega de Cybersecurity, use `codex/sprint3-api-security`.
 
