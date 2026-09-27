@@ -47,7 +47,7 @@ class AuthenticationFlowIntegrationTest {
 
     @Test
     void deveRegistrarELogarComSucesso() throws Exception {
-        String registerBody = "{\"nome\":\"Victor Hugo\",\"email\":\"victor@test.com\",\"senha\":\"123456\"}";
+        String registerBody = "{\"nome\":\"Victor Hugo\",\"email\":\"victor@test.com\",\"senha\":\"SenhaForte2026!\"}";
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,7 +56,7 @@ class AuthenticationFlowIntegrationTest {
                 .andExpect(jsonPath("$.email").value("victor@test.com"))
                 .andExpect(jsonPath("$.senhaHash").doesNotExist());
 
-        String loginBody = "{\"email\":\"victor@test.com\",\"senha\":\"123456\"}";
+        String loginBody = "{\"email\":\"victor@test.com\",\"senha\":\"SenhaForte2026!\"}";
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -68,7 +68,7 @@ class AuthenticationFlowIntegrationTest {
 
     @Test
     void deveRejeitarRegistroDeEmailDuplicado_retorna409() throws Exception {
-        String body = "{\"nome\":\"Victor\",\"email\":\"duplicado@test.com\",\"senha\":\"123456\"}";
+        String body = "{\"nome\":\"Victor\",\"email\":\"duplicado@test.com\",\"senha\":\"SenhaForte2026!\"}";
 
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
@@ -79,7 +79,7 @@ class AuthenticationFlowIntegrationTest {
 
     @Test
     void deveRejeitarLoginComSenhaErrada_retorna401() throws Exception {
-        String registerBody = "{\"nome\":\"Victor\",\"email\":\"senhaerrada@test.com\",\"senha\":\"123456\"}";
+        String registerBody = "{\"nome\":\"Victor\",\"email\":\"senhaerrada@test.com\",\"senha\":\"SenhaForte2026!\"}";
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(registerBody));
 
         String loginBody = "{\"email\":\"senhaerrada@test.com\",\"senha\":\"errada123\"}";
@@ -142,12 +142,12 @@ class AuthenticationFlowIntegrationTest {
         User admin = User.builder()
                 .nome("Admin")
                 .email("admin@test.com")
-                .senhaHash(passwordEncoder.encode("123456"))
+                .senhaHash(passwordEncoder.encode("SenhaForte2026!"))
                 .role(UserRole.ADMIN)
                 .build();
         userRepository.save(admin);
 
-        String loginBody = "{\"email\":\"admin@test.com\",\"senha\":\"123456\"}";
+        String loginBody = "{\"email\":\"admin@test.com\",\"senha\":\"SenhaForte2026!\"}";
 
         String response = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -172,16 +172,43 @@ class AuthenticationFlowIntegrationTest {
     }
 
     @Test
+    void deveLimitarTentativasDeLoginPorIp() throws Exception {
+        String body = "{\"email\":\"inexistente@test.com\",\"senha\":\"senha-invalida\"}";
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(post("/auth/login").with(request -> {
+                        request.setRemoteAddr("198.51.100.45");
+                        return request;
+                    }).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isUnauthorized());
+        }
+        mockMvc.perform(post("/auth/login").with(request -> {
+                    request.setRemoteAddr("198.51.100.45");
+                    return request;
+                }).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void deveRejeitarCamposDeBuscaForaDosLimites() throws Exception {
+        String token = registerAndLogin("validacao@test.com");
+        mockMvc.perform(post("/vehicles/search")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"marca\":\"Ford\",\"modelo\":\"Ranger\",\"ano\":1500,\"versao\":\"X\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deveRetornarBuscaDeVeiculoInexistente_retorna404() throws Exception {
         mockMvc.perform(get("/vehicles/999999"))
                 .andExpect(status().isNotFound());
     }
 
     private String registerAndLogin(String email) throws Exception {
-        String registerBody = "{\"nome\":\"Teste\",\"email\":\"" + email + "\",\"senha\":\"123456\"}";
+        String registerBody = "{\"nome\":\"Teste\",\"email\":\"" + email + "\",\"senha\":\"SenhaForte2026!\"}";
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(registerBody));
 
-        String loginBody = "{\"email\":\"" + email + "\",\"senha\":\"123456\"}";
+        String loginBody = "{\"email\":\"" + email + "\",\"senha\":\"SenhaForte2026!\"}";
         String response = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginBody))
