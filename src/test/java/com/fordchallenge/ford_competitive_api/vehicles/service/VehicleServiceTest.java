@@ -92,6 +92,7 @@ class VehicleServiceTest {
                 "Ford", "Ranger", 2026, "Raptor"
         )).thenReturn(Optional.of(existente));
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(User.builder().id(5L).build());
         VehicleSearchOutcome outcome = vehicleService.searchVehicle(request);
 
         assertThat(outcome.created()).isFalse();
@@ -114,6 +115,7 @@ class VehicleServiceTest {
             return vehicle;
         });
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(User.builder().id(5L).build());
         VehicleSearchOutcome outcome = vehicleService.searchVehicle(request);
 
         assertThat(outcome.created()).isTrue();
