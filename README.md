@@ -332,11 +332,11 @@ spring.application.name=ford-competitive-api
 # DATABASE
 spring.datasource.url=jdbc:postgresql://localhost:5432/ford_challenge
 spring.datasource.username=postgres
-spring.datasource.password=${DB_PASSWORD:SUA_SENHA}
+spring.datasource.password=${DB_PASSWORD}
 
 # JPA / HIBERNATE
 spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
+spring.jpa.show-sql=false
 spring.jpa.properties.hibernate.format_sql=true
 
 # SERVER
@@ -344,11 +344,12 @@ server.port=8080
 server.address=0.0.0.0
 
 # JWT — nunca deixe o segredo real hardcoded; defina via variável de ambiente em produção
-jwt.secret=${JWT_SECRET:troque-esta-chave-em-producao}
-jwt.expiration-ms=${JWT_EXPIRATION_MS:86400000}
+jwt.secret=${JWT_SECRET}
+jwt.expiration-ms=${JWT_EXPIRATION_MS:3600000}
+app.cors.allowed-origins=${CORS_ALLOWED_ORIGINS:http://localhost:8081}
 ```
 
-> Para rodar localmente sem configurar nada, os valores padrão (`:SUA_SENHA`, `:troque-esta-chave...`) já funcionam — basta exportar `DB_PASSWORD` e `JWT_SECRET` quando for para um ambiente real.
+> Antes de iniciar, configure `DB_PASSWORD` e `JWT_SECRET` (uma chave aleatória com pelo menos 32 bytes). Para clientes web, ajuste `CORS_ALLOWED_ORIGINS` à origem exata; clientes mobile nativos não usam CORS. Não versionar os valores dessas variáveis.
 
 ---
 
@@ -395,7 +396,7 @@ POST /auth/login
 ```json
 {
   "email": "victor@test.com",
-  "senha": "123456"
+  "senha": "SenhaForte2026!"
 }
 ```
 
@@ -589,4 +590,3 @@ A arquitetura foi preparada para futuras implementações:
 # Licença
 
 Projeto acadêmico sem fins comerciais.
-
