@@ -80,13 +80,13 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
-    // 400 - fallback para demais regras de negócio não mapeadas explicitamente
+    // Falhas inesperadas não devem expor detalhes internos ao cliente.
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiErrorResponse> handleRuntimeException(
             RuntimeException exception,
             HttpServletRequest request
     ) {
-        return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado", request);
     }
 
     // 500 - qualquer erro inesperado não tratado acima
