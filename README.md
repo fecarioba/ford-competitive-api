@@ -37,7 +37,7 @@ As funcionalidades de IA, scraping e Google Dorking ainda não foram implementad
 
 ---
 
-# Segurança — diferenças desta branch
+# Segurança
 
 As medidas a seguir foram adicionadas em `codex/sprint3-api-security` sobre a API da branch `main`:
 
