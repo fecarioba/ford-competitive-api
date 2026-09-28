@@ -1,0 +1,136 @@
+name: Cybersecurity
+
+on:
+  push:
+    branches: [sprint3-api-security]
+  pull_request:
+    branches: [sprint3-api-security]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cybersecurity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  tests:
+    name: Maven tests (Java 21)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run tests with the H2 test profile
+        run: bash ./mvnw --batch-mode --no-transfer-progress clean test
+      - name: Publish test reports even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maven-test-reports
+          path: target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  sast:
+    name: SAST (CodeQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+        with:
+          languages: java-kotlin
+          build-mode: manual
+          queries: security-extended
+      - name: Compile for CodeQL (including Lombok generation)
+        run: bash ./mvnw --batch-mode --no-transfer-progress -DskipTests clean compile
+      - name: Analyze and publish code scanning results
+        uses: github/codeql-action/analyze@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+        with:
+          category: /language:java-kotlin
+
+  sca:
+    name: SCA (Trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Package the application and its runtime dependencies
+        run: bash ./mvnw --batch-mode --no-transfer-progress -DskipTests clean package
+      - name: Scan packaged dependencies for known vulnerabilities
+        id: scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.74.0
+          scan-type: rootfs
+          scan-ref: target/
+          scanners: vuln
+          list-all-pkgs: true
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+          format: json
+          output: trivy-sca.json
+          timeout: 10m
+      - name: Verify that Java packages were actually analyzed
+        if: ${{ !cancelled() && steps.scan.outcome != 'skipped' }}
+        run: jq -e '.Results | any(.Type == "jar" and (.Packages | length > 0))' trivy-sca.json
+      - name: Publish SCA report even on findings
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-sca
+          path: trivy-sca.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  secrets:
+    name: Secret detection (Trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan current source tree for secrets
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.74.0
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          skip-dirs: .git,target,.cache
+          exit-code: '1'
+          format: table
+          timeout: 5m

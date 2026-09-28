@@ -56,6 +56,39 @@ O limite de login usa memória local da instância e o endereço remoto da conex
 
 ---
 
+# CI de Cybersecurity (GitHub Actions)
+
+O workflow [`.github/workflows/cybersecurity.yml`](.github/workflows/cybersecurity.yml) executa em pushes na branch `sprint3-api-security` e pull requests cujo destino é essa branch. Também declara `workflow_dispatch`: o botão **Run workflow** depende de o arquivo estar presente na branch padrão do repositório. Os quatro jobs são independentes; uma falha nos testes não impede as análises de segurança.
+
+| Job | O que verifica | Resultado e critério de falha |
+|---|---|---|
+| **Maven tests (Java 21)** | Executa `bash ./mvnw --batch-mode --no-transfer-progress clean test` com Temurin 21. Os testes Spring usam o perfil `test` e H2 em memória. | Falha se a compilação ou qualquer teste falhar. Relatórios XML/TXT no artefato `maven-test-reports`, inclusive quando há falhas. Não exige PostgreSQL nem segredos de produção. |
+| **SAST (CodeQL)** | Compila Java com Maven e Lombok sob instrumentação do CodeQL e aplica a suíte `security-extended` para procurar padrões inseguros e fluxos de dados vulneráveis. | Publica alertas em **Security → Code scanning**. Erros na análise falham o job; encontrar um alerta não necessariamente torna o job vermelho. Para bloquear merges por severidade, configure regras de proteção/code scanning no GitHub. |
+| **SCA (Trivy)** | Empacota a aplicação e usa o modo `rootfs` para verificar vulnerabilidades conhecidas nas dependências diretas e transitivas presentes nos JARs de `target/`. Confirma que o relatório contém pacotes Java para evitar uma aprovação com inventário vazio. | Falha em achados **HIGH/CRITICAL**, mesmo sem versão corrigida. Relatório JSON no artefato `trivy-sca`, inclusive quando há achados. A cobertura é das bibliotecas empacotadas; dependências exclusivas de teste e plugins de build ficam fora desse escopo. |
+| **Secret detection (Trivy)** | Procura padrões de tokens, chaves e outros segredos nos arquivos da revisão atual, com todas as severidades habilitadas. Exclui `.git`, `target` e `.cache`. | Falha quando encontra um segredo. Consulte o log do passo **Scan current source tree for secrets**, com a ocultação padrão de valores do Trivy. Não examina commits antigos nem substitui a revogação de uma credencial exposta. |
+
+Para consultar uma execução, abra **Actions → Cybersecurity → execução → job**. A seção **Artifacts** da execução oferece os relatórios de testes e SCA por 14 dias. Em um pull request, veja também a aba **Checks**. No Code scanning, selecione a branch/PR correspondente e a ferramenta CodeQL. Falhas de download ou indisponibilidade das bases de vulnerabilidades são erros de execução, não resultados de aprovação. Os resultados de SCA podem mudar quando a base de vulnerabilidades é atualizada, mesmo sem mudança no código.
+
+O CodeQL requer code scanning disponível e configuração avançada habilitada: é disponibilizado para repositórios públicos e depende da licença/configuração GitHub Code Security em repositórios privados. Evite manter o default setup do CodeQL concorrendo com este advanced setup. A publicação de alertas, as políticas de actions, as permissões efetivas e a exibição de Checks/Artifacts precisam ser confirmadas na primeira execução no GitHub. Pull requests de forks podem exigir aprovação de um mantenedor para iniciar a execução; o workflow usa `pull_request`, não `pull_request_target`.
+
+O token automático do GitHub tem apenas `contents: read`; somente o job SAST acrescenta `security-events: write` para publicar os resultados. O checkout não persiste credenciais. Não é necessário cadastrar PAT, chave NVD ou credencial da aplicação. As actions estão fixadas por SHA de commit, com a release estável em comentário: checkout **v7.0.1**, setup-java **v6.0.1**, upload-artifact **v7.0.1**, CodeQL **v4.38.2** e trivy-action **v0.36.0**. O scanner Trivy também está fixado em **v0.74.0**. Atualize os hashes junto das versões após revisar as releases oficiais.
+
+Para reproduzir as verificações disponíveis localmente, com Java 21, Maven Wrapper, Trivy 0.74.0 e actionlint 1.7.12:
+
+```bash
+bash ./mvnw --batch-mode --no-transfer-progress clean test
+bash ./mvnw --batch-mode --no-transfer-progress -DskipTests clean package
+actionlint .github/workflows/cybersecurity.yml
+trivy rootfs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format json --output trivy-sca.json --timeout 10m target/
+trivy fs --scanners secret --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --skip-dirs .git,target,.cache --exit-code 1 --format table --timeout 5m .
+```
+
+No Windows, use `mvnw.cmd` no lugar de `bash ./mvnw`. Se o wrapper apresentar o erro de propriedade `Target` nula do PowerShell, execute os mesmos argumentos com uma instalação local do Maven **3.9.15**, versão declarada em `.mvn/wrapper/maven-wrapper.properties`. O runner Linux utiliza o wrapper Bash. A validação com actionlint verifica sintaxe e estrutura do workflow, mas não executa as actions. A execução integral do CodeQL configurado aqui será validada no GitHub.
+
+Documentação oficial consultada para esta configuração: [setup-java](https://github.com/actions/setup-java), [CodeQL Action e permissões](https://github.com/github/codeql-action), [CodeQL para linguagens compiladas](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/codeql-for-compiled-languages), [Trivy Action](https://github.com/aquasecurity/trivy-action), [SCA Java no Trivy](https://trivy.dev/docs/latest/coverage/language/java/), [detecção de segredos](https://trivy.dev/docs/latest/scanner/secret/) e [actionlint](https://github.com/rhysd/actionlint).
+
+---
+
 # Sprint 3 — O que mudou nesta refatoração
 
 [#sprint-3--o-que-mudou-nesta-refatoração](#sprint-3--o-que-mudou-nesta-refatoração)
