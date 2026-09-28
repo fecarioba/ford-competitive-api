@@ -1,0 +1,71 @@
+﻿diff --git a/src/main/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilter.java b/src/main/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilter.java
+index 14215d4..cf93df6 100644
+--- a/src/main/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilter.java
++++ b/src/main/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilter.java
+@@ -23,7 +23,9 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
+ 
+     @Override
+     protected boolean shouldNotFilter(HttpServletRequest request) {
+-        return !"POST".equals(request.getMethod()) || !"/auth/login".equals(request.getServletPath());
++        // A URI inclui o context path e funciona mesmo quando servletPath esta vazio (MockMvc).
++        return !"POST".equals(request.getMethod())
++                || !(request.getContextPath() + "/auth/login").equals(request.getRequestURI());
+     }
+ 
+     @Override
+diff --git a/src/test/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilterTest.java b/src/test/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilterTest.java
+new file mode 100644
+index 0000000..9e2e18e
+--- /dev/null
++++ b/src/test/java/com/fordchallenge/ford_competitive_api/security/LoginRateLimitFilterTest.java
+@@ -0,0 +1,50 @@
++package com.fordchallenge.ford_competitive_api.security;
++
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++import org.springframework.mock.web.MockHttpServletRequest;
++import org.springframework.mock.web.MockHttpServletResponse;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++class LoginRateLimitFilterTest {
++
++    @ParameterizedTest
++    @CsvSource(value = {"'', ''", "'', /auth/login", "/api, ''", "/api, /auth/login"})
++    void deveLimitarLoginComOuSemContextPathEServletPath(String contextPath, String servletPath)
++            throws Exception {
++        LoginRateLimitFilter filter = new LoginRateLimitFilter();
++        for (int attempt = 1; attempt <= 11; attempt++) {
++            MockHttpServletRequest request = new MockHttpServletRequest("POST", contextPath + "/auth/login");
++            request.setContextPath(contextPath);
++            request.setServletPath(servletPath);
++            MockHttpServletResponse response = new MockHttpServletResponse();
++
++            filter.doFilter(request, response, (req, res) -> ((MockHttpServletResponse) res).setStatus(401));
++
++            assertThat(response.getStatus()).isEqualTo(attempt <= 10 ? 401 : 429);
++            if (attempt == 11) {
++                assertThat(response.getHeader("Retry-After")).isNotBlank();
++            }
++        }
++    }
++
++    @ParameterizedTest
++    @CsvSource({
++            "GET, /api/auth/login", "PUT, /api/auth/login", "OPTIONS, /api/auth/login",
++            "POST, /api/auth/register", "POST, /api/auth/login/", "POST, /api/auth/login/extra",
++            "POST, /api/other/auth/login"
++    })
++    void deveIgnorarOutrosMetodosERotas(String method, String uri) throws Exception {
++        LoginRateLimitFilter filter = new LoginRateLimitFilter();
++        for (int attempt = 1; attempt <= 11; attempt++) {
++            MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
++            request.setContextPath("/api");
++            MockHttpServletResponse response = new MockHttpServletResponse();
++
++            filter.doFilter(request, response, (req, res) -> ((MockHttpServletResponse) res).setStatus(204));
++
++            assertThat(response.getStatus()).isEqualTo(204);
++        }
++    }
++}

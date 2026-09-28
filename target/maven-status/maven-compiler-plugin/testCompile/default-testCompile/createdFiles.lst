@@ -1,0 +1,6 @@
+com\fordchallenge\ford_competitive_api\auth\service\AuthServiceTest.class
+com\fordchallenge\ford_competitive_api\vehicles\service\VehicleServiceTest.class
+com\fordchallenge\ford_competitive_api\security\JwtServiceTest.class
+com\fordchallenge\ford_competitive_api\security\LoginRateLimitFilterTest.class
+com\fordchallenge\ford_competitive_api\FordCompetitiveApiApplicationTests.class
+com\fordchallenge\ford_competitive_api\AuthenticationFlowIntegrationTest.class

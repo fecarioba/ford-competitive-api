@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.fordchallenge.ford_competitive_api.security.LoginRateLimitFilterTest
+-------------------------------------------------------------------------------
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.105 s -- in com.fordchallenge.ford_competitive_api.security.LoginRateLimitFilterTest

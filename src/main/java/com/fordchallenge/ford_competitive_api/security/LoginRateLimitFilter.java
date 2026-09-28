@@ -23,7 +23,9 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !"POST".equals(request.getMethod()) || !"/auth/login".equals(request.getServletPath());
+        // A URI inclui o context path e funciona mesmo quando servletPath esta vazio (MockMvc).
+        return !"POST".equals(request.getMethod())
+                || !(request.getContextPath() + "/auth/login").equals(request.getRequestURI());
     }
 
     @Override
